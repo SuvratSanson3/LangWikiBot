@@ -7,7 +7,6 @@ from langchain_community.tools import ArxivQueryRun, WikipediaQueryRun
 from langchain_groq import ChatGroq
 from langgraph.graph import StateGraph, START, END
 from langgraph.graph.message import add_messages
-from langgraph.graph import State as GraphState
 from langgraph.prebuilt import ToolNode, tools_condition
 
 # Arxiv and Wikipedia API wrappers
@@ -28,15 +27,15 @@ llm = ChatGroq(groq_api_key=groq_api_key, model="llama3-70b-8192")
 llm_with_tools = llm.bind_tools(tools=tools)
 
 # Define the LangGraph State
-class ChatState(GraphState):
+class State(TypedDict):
     messages: Annotated[list, add_messages]
 
 # Define the chatbot node function
-def chatbot(state: ChatState):
+def chatbot(state: State):
     return {"messages": [llm_with_tools.invoke(state["messages"])]}
 
 # Build the LangGraph
-graph_bulider = StateGraph(ChatState)
+graph_bulider = StateGraph(State)
 graph_bulider.add_node("chatbot", chatbot)
 
 # Tool node
