@@ -7,6 +7,7 @@ from langchain_community.tools import ArxivQueryRun, WikipediaQueryRun
 from langchain_groq import ChatGroq
 from langgraph.graph import StateGraph, START, END
 from langgraph.graph.message import add_messages
+from langgraph.graph import State as GraphState
 from langgraph.prebuilt import ToolNode, tools_condition
 
 # Arxiv and Wikipedia API wrappers
@@ -16,42 +17,42 @@ arxiv_tool = ArxivQueryRun(api_wrapper=arxiv_wrapper)
 wiki_wrapper = WikipediaAPIWrapper(top_k_results=1, doc_content_chars_max=500)
 wiki_tool = WikipediaQueryRun(api_wrapper=wiki_wrapper)
 
-wiki_tool.invoke("Who is Cristiano Ronaldo")
+tools = [wiki_tool, arxiv_tool]
 
-tools = [wiki_tool]
-
-# Loading the Groq_api_key
+# Loading the Groq API key
 load_dotenv("/home/abcom/langGraph/groq-langgraph-chatbot/key.env")
 groq_api_key = os.getenv("chatbot_api_key")
 
-# Initializing the Llm and binding it to the tools
+# Initializing the LLM and binding it to the tools
 llm = ChatGroq(groq_api_key=groq_api_key, model="llama3-70b-8192")
 llm_with_tools = llm.bind_tools(tools=tools)
 
-# LangGraph Applications
-class State:
-    message: Annotated[list, add_messages]
+# Define the LangGraph State
+class ChatState(GraphState):
+    messages: Annotated[list, add_messages]
 
-# Creating the chatbot
-def chatbot(state:State):
+# Define the chatbot node function
+def chatbot(state: ChatState):
     return {"messages": [llm_with_tools.invoke(state["messages"])]}
 
-# Building the StateGraph
-graph_bulider = StateGraph(State)
+# Build the LangGraph
+graph_bulider = StateGraph(ChatState)
 graph_bulider.add_node("chatbot", chatbot)
-graph_bulider.add_edge(START, "chatbot")
+
+# Tool node
 tool_node = ToolNode(tools=tools)
 graph_bulider.add_node("tools", tool_node)
 
-graph_bulider.add_conditional_edges(
-    "chatbot",
-    tools_condition
-)
+# Define edges
+graph_bulider.add_edge(START, "chatbot")
+graph_bulider.add_conditional_edges("chatbot", tools_condition)
 graph_bulider.add_edge("tools", "chatbot")
 graph_bulider.add_edge("chatbot", END)
 
+# Compile the graph
 graph = graph_bulider.compile()
 
+# Function to interact with the bot
 def chat_with_bot(user_input):
     events = graph.stream({"messages": [("user", user_input)]}, stream_mode="values")
     response = ""
