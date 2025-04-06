@@ -52,9 +52,9 @@ graph_bulider.add_edge("chatbot", END)
 
 graph = graph_bulider.compile()
 
-user_input = "Hi there! My name is Suvrat"
-events = graph.stream(
-    {"messages": [("user", user_input)]}, stream_mode="values"
-)
-for event in events:
-    event["messages"][-1].pretty_print()
+def chat_with_bot(user_input):
+    events = graph.stream({"messages": [("user", user_input)]}, stream_mode="values")
+    response = ""
+    for event in events:
+        response = event["messages"][-1].content
+    return response
